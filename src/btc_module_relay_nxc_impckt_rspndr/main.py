@@ -4,7 +4,6 @@ from __future__ import annotations
 import signal
 import sys
 import time
-from pathlib import Path
 from typing import Optional
 
 import click
@@ -12,7 +11,6 @@ import click
 from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
 from btc_module_relay_nxc_impckt_rspndr.controller.ntlmrelayx_ctrl import NtlmrelayxController
 from btc_module_relay_nxc_impckt_rspndr.controller.responder_ctrl import ResponderController
-from btc_module_relay_nxc_impckt_rspndr.controller.nxc_ctrl import NxcController
 from btc_module_relay_nxc_impckt_rspndr.logger import get_logger, setup_logging
 from btc_module_relay_nxc_impckt_rspndr.pipeline.coerce import CoercePipeline
 from btc_module_relay_nxc_impckt_rspndr.pipeline.post_auth import PostAuthPipeline

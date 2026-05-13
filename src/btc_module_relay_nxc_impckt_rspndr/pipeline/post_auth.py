@@ -4,7 +4,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List
 
-from btc_module_relay_nxc_impckt_rspndr.config import AppConfig, ProtocolActions
+from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
 from btc_module_relay_nxc_impckt_rspndr.controller.nxc_ctrl import NxcController
 from btc_module_relay_nxc_impckt_rspndr.logger import get_logger, jsonl_event
 from btc_module_relay_nxc_impckt_rspndr.parser.nxc_output import parse_generic, parse_ldap_users, parse_smb_shares, parse_smb_users
@@ -84,7 +84,7 @@ class PostAuthPipeline:
             protocol=protocol,
             target=target,
             username=session.username,
-            nthash=session.nthash or "",
+            nthash=session.nthash,
             domain=session.domain,
             extra_args=extra_args,
         )

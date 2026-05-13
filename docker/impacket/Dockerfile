@@ -12,4 +12,5 @@ RUN mkdir -p /loot /logs
 
 WORKDIR /workspace
 
-ENTRYPOINT ["python3", "-m"]
+# Shell entrypoint allows redirects and background jobs via orchestrator commands
+ENTRYPOINT ["/bin/sh", "-c"]

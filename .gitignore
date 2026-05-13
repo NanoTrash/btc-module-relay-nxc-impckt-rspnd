@@ -47,3 +47,4 @@ responder/*.log
 # OS
 .DS_Store
 Thumbs.db
+responder/

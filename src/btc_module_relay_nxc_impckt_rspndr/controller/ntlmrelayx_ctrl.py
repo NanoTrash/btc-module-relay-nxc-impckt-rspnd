@@ -1,15 +1,15 @@
 """Controller for impacket ntlmrelayx Docker container."""
 from __future__ import annotations
 
+import shutil
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
-import docker
 from docker.models.containers import Container
 
-from btc_module_relay_nxc_impckt_rspndr.config import AppConfig, NtlmrelayxConfig
+from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
 from btc_module_relay_nxc_impckt_rspndr.logger import get_logger, jsonl_event
 from btc_module_relay_nxc_impckt_rspndr.session import SessionRegistry
 from btc_module_relay_nxc_impckt_rspndr.utils.docker_helpers import (
@@ -45,6 +45,7 @@ class NtlmrelayxController:
         stop_container(self.client, CONTAINER_NAME)
 
         volumes = self._build_volumes()
+        self._prepare_targets_file()
         cmd = self._build_command()
 
         self._container = run_detached(
@@ -80,18 +81,30 @@ class NtlmrelayxController:
             return False
 
     def _build_volumes(self) -> Dict[str, Dict[str, str]]:
-        loot = str(Path(self.cfg.docker.loot_dir).resolve())
-        logs = str(Path(self.cfg.docker.logs_dir).resolve())
-        Path(loot).mkdir(parents=True, exist_ok=True)
-        Path(logs).mkdir(parents=True, exist_ok=True)
+        loot = Path(self.cfg.docker.loot_dir)
+        logs = Path(self.cfg.docker.logs_dir)
+        loot.mkdir(parents=True, exist_ok=True)
+        logs.mkdir(parents=True, exist_ok=True)
         return {
-            loot: {"bind": "/loot", "mode": "rw"},
-            logs: {"bind": "/logs", "mode": "rw"},
+            str(loot.resolve()): {"bind": "/loot", "mode": "rw"},
+            str(logs.resolve()): {"bind": "/logs", "mode": "rw"},
         }
 
+    def _prepare_targets_file(self) -> None:
+        """Copy user targets file into the shared logs volume so ntlmrelayx can read it."""
+        src = Path(self.ntlm_cfg.targets_file)
+        if src.exists():
+            dst = Path(self.cfg.docker.logs_dir) / "targets.txt"
+            shutil.copy(str(src), str(dst))
+            logger.info(f"Copied targets file to {dst}")
+
     def _build_command(self) -> list[str]:
-        """Build shell command for ntlmrelayx inside container."""
-        parts = ["impacket.ntlmrelayx"]
+        """Build shell command for ntlmrelayx (runs via /bin/sh -c).
+
+        ntlmrelayx.py is started in background with nohup, then tail -f /dev/null
+        keeps the container alive so docker-py sees it as running.
+        """
+        parts = ["ntlmrelayx.py"]
         cfg = self.ntlm_cfg
 
         if cfg.targets_file:
@@ -106,16 +119,17 @@ class NtlmrelayxController:
         if cfg.keep_relaying:
             parts.append("--keep-relaying")
         if cfg.command:
-            parts += ["-c", cfg.command]
-        # Redirect stdout to a file so we can tail it from host side
+            parts += ["-c", f"'{cfg.command}'"]
+        # Loot output files
         parts += ["-of", "/loot/hashes", "-l", "/loot"]
-        cmd_str = " ".join(parts) + " > /logs/ntlmrelayx.log 2>&1"
-        return ["-c", cmd_str]
+        relay_cmd = " ".join(parts)
+        # Background ntlmrelayx with log redirect, foreground tail keeps container alive
+        shell_cmd = f"nohup {relay_cmd} > /logs/ntlmrelayx.log 2>&1 & tail -f /dev/null"
+        return [shell_cmd]
 
     def _tail_logs(self) -> None:
         """Tail the mounted log file from host side."""
         log_path = Path(self.cfg.docker.logs_dir) / "ntlmrelayx.log"
-        # Wait for file to appear
         for _ in range(30):
             if self._stop_event.is_set():
                 return
@@ -128,7 +142,6 @@ class NtlmrelayxController:
             return
 
         with log_path.open("r", encoding="utf-8", errors="replace") as fh:
-            # Seek to end initially? No, read from start to catch all
             while not self._stop_event.is_set():
                 line = fh.readline()
                 if not line:
@@ -139,10 +152,6 @@ class NtlmrelayxController:
 
     def _parse_line(self, line: str) -> None:
         """Stub: parse ntlmrelayx output for relay successes."""
-        # Example patterns to extend:
-        # "[*] SMBD-Thread-5: Connection from ... authenticated"
-        # "[*] Authenticating against ... as ..."
-        # "[*] Dumping domain credentials ..."
         if "authenticated" in line.lower() or "relay" in line.lower():
             logger.info(f"[ntlmrelayx] {line}")
             jsonl_event("ntlmrelayx_log", line=line)

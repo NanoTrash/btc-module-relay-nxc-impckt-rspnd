@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import docker
 from docker.models.containers import Container
@@ -57,7 +57,7 @@ def run_ephemeral(
         stdout=True,
         stderr=True,
     )
-    # When auto_remove=False and detach=False, run() returns bytes directly
+    # When detach=False, docker-py returns bytes (stdout) directly
     if isinstance(container, bytes):
         return container.decode("utf-8", errors="replace")
     return str(container)
