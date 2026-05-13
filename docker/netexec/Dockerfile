@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     libxml2-dev \
     libxslt1-dev \
+    python3-dev \
+    iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir git+https://github.com/Pennyw0rth/NetExec.git

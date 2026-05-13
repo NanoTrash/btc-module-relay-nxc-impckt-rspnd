@@ -219,8 +219,10 @@ RELAYING
 |------------|-------------------|------------|
 | `./loot` | `/loot` | SAM dumps, hashes, SOCKS-данные от ntlmrelayx |
 | `./logs` | `/logs` | Логи ntlmrelayx для tail'инга оркестратором |
-| `./responder` | `/opt/responder` | Responder.conf, Responder.db, poisoner логи |
+| `./logs` | `/opt/responder/logs` | Poisoner логи Responder |
 | `./` (ro) | `/workspace` | Таргет-файлы, вордлисты для nxc |
+
+> **Примечание:** `Responder.conf` генерируется оркестратором автоматически и копируется в контейнер через `put_archive`. Не требуется ручное монтирование директории `/opt/responder`.
 
 ---
 
@@ -315,34 +317,34 @@ post_auth:
 - Poetry (`pip install poetry`)
 - Docker (Linux, с поддержкой `host` network mode)
 
-### Установка
+### Production Deployment
+
+**Для развёртывания в лаборатории заказчика** см. подробную инструкцию:
+
+📄 **[DEPLOY.md](DEPLOY.md)** — требования к хосту, настройка сети, пошаговый запуск, troubleshooting.
+
+### Быстрый старт (для разработки)
 
 ```bash
 cd btc-module-relay-nxc-impckt-rspndr
 poetry install
-```
 
-### Сборка Docker-образов
-
-```bash
+# Сборка образов
 docker build -t btc-relay/impacket:latest docker/impacket
 docker build -t btc-relay/netexec:latest docker/netexec
 docker build -t btc-relay/responder:latest docker/responder
-```
 
-### Запуск
+# Подготовка targets
+echo -e "smb://192.168.1.20\nsmb://192.168.1.21" > targets_relay.txt
 
-```bash
-# 1. Подготовить файл с target'ами для relay
-echo -e "192.168.1.20\n192.168.1.21" > targets_relay.txt
+# Редактировать config.yaml:
+#   - responder.interface (реальный интерфейс, не eth0)
+#   - coerce.callback_host (IP этой машины)
+#   - coerce.targets (жертвы coercion)
+#   - post_auth.protocols
 
-# 2. Отредактировать config.yaml:
-#    - coerce.callback_host (IP твоей машины)
-#    - coerce.targets (жертвы coercion)
-#    - post_auth.protocols (какие протоколы сканировать)
-
-# 3. Запуск полного пайплайна
-poetry run btc-relay start -c config.yaml
+# Запуск
+poetry run btc-relay-rspndr start -c config.yaml
 ```
 
 ### CLI

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Any, Dict, List
 
 from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
@@ -49,6 +50,11 @@ class PostAuthPipeline:
     def _build_task_list(self, session: RelaySession) -> List[Dict[str, Any]]:
         tasks: List[Dict[str, Any]] = []
         target = session.relay_target or ""
+        # Fallback: if no relay_target parsed from logs, use first target from targets_file
+        if not target and Path(self.cfg.ntlmrelayx.targets_file).exists():
+            lines = Path(self.cfg.ntlmrelayx.targets_file).read_text().strip().splitlines()
+            if lines:
+                target = lines[0].strip()
         for proto_name, proto_cfg in self.cfg.post_auth.protocols.items():
             if not proto_cfg.enabled:
                 continue

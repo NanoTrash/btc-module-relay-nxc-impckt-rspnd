@@ -11,7 +11,7 @@ from docker.models.containers import Container
 
 from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
 from btc_module_relay_nxc_impckt_rspndr.logger import get_logger, jsonl_event
-from btc_module_relay_nxc_impckt_rspndr.session import SessionRegistry
+from btc_module_relay_nxc_impckt_rspndr.session import SessionRegistry, SessionStatus
 from btc_module_relay_nxc_impckt_rspndr.utils.docker_helpers import (
     ensure_image,
     get_client,
@@ -172,9 +172,61 @@ class NtlmrelayxController:
                 self._parse_line(line)
 
     def _parse_line(self, line: str) -> None:
-        """Stub: parse ntlmrelayx output for relay successes."""
-        if "authenticated" in line.lower() or "relay" in line.lower():
+        """Parse ntlmrelayx output for relay successes and session creation."""
+        import re
+
+        # Always log relay-related lines at info level
+        if "authenticated" in line.lower() or "succeed" in line.lower() or "received connection" in line.lower():
             logger.info(f"[ntlmrelayx] {line}")
             jsonl_event("ntlmrelayx_log", line=line)
         else:
             logger.debug(f"[ntlmrelayx] {line}")
+
+        # Parse "Received connection from X.X.X.X, attacking target smb://Y.Y.Y.Y"
+        conn_match = re.search(
+            r"Received connection from\s+([\d.]+).*attacking target\s+(\S+)",
+            line,
+            re.IGNORECASE,
+        )
+        if conn_match:
+            source_ip = conn_match.group(1)
+            relay_target = conn_match.group(2)
+            sess = self.registry.create(
+                source_ip=source_ip,
+                relay_target=relay_target,
+                status=SessionStatus.RELAYING,
+                listener_protocol="smb",
+            )
+            logger.info(f"[ntlmrelayx] Session {sess.id} relaying to {relay_target}")
+            jsonl_event("ntlmrelayx_relay_start", session_id=sess.id, target=relay_target)
+            return
+
+        # Parse "Authenticating against ... as DOMAIN\user SUCCEED"
+        auth_match = re.search(
+            r"Authenticating against\s+\S+\s+as\s+([^\\]+)\\(\S+)\s+SUCCEED",
+            line,
+            re.IGNORECASE,
+        )
+        if auth_match:
+            domain = auth_match.group(1).strip()
+            username = auth_match.group(2).strip()
+            # Find most recent RELAYING session without identity
+            candidates = [
+                s for s in self.registry.by_status(SessionStatus.RELAYING)
+                if not s.username
+            ]
+            if candidates:
+                sess = candidates[-1]
+                self.registry.transition(
+                    sess.id,
+                    SessionStatus.RELAY_SUCCESS,
+                    domain=domain,
+                    username=username,
+                )
+                logger.info(f"[ntlmrelayx] Session {sess.id} relay success: {domain}\\{username}")
+                jsonl_event(
+                    "ntlmrelayx_relay_success",
+                    session_id=sess.id,
+                    domain=domain,
+                    username=username,
+                )

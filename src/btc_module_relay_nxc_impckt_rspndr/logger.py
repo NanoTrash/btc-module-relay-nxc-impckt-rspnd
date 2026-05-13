@@ -29,7 +29,9 @@ def setup_logging(log_level: str = "INFO", jsonl_path: str = "sessions.jsonl") -
 
     # JSONL file appender
     fh = Path(jsonl_path).open("a", encoding="utf-8")
-    _jsonl_file = fh
+
+    import atexit
+    atexit.register(fh.close)
 
     def _jsonl_sink(_event: str, **kwargs: Any) -> None:
         fh.write(json.dumps(kwargs, default=str, ensure_ascii=False) + "\n")
