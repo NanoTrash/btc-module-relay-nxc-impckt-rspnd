@@ -1,6 +1,20 @@
 version: "3.8"
 
 services:
+  responder:
+    build:
+      context: ./responder
+    image: btc-relay/responder:latest
+    container_name: btc-relay-responder
+    network_mode: host
+    volumes:
+      - ../responder:/opt/responder
+      - ../logs:/opt/responder/logs
+    restart: unless-stopped
+    # Command is injected by the orchestrator dynamically
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["tail -f /dev/null"]
+
   ntlmrelayx:
     build:
       context: ./impacket

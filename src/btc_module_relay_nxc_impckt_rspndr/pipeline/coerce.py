@@ -5,10 +5,10 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 
-from btc_relay_module_nxc_impckt.config import AppConfig
-from btc_relay_module_nxc_impckt.controller.nxc_ctrl import NxcController
-from btc_relay_module_nxc_impckt.logger import get_logger, jsonl_event
-from btc_relay_module_nxc_impckt.session import SessionRegistry, SessionStatus
+from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
+from btc_module_relay_nxc_impckt_rspndr.controller.nxc_ctrl import NxcController
+from btc_module_relay_nxc_impckt_rspndr.logger import get_logger, jsonl_event
+from btc_module_relay_nxc_impckt_rspndr.session import SessionRegistry, SessionStatus
 
 logger = get_logger()
 

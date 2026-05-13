@@ -4,11 +4,11 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List
 
-from btc_relay_module_nxc_impckt.config import AppConfig, ProtocolActions
-from btc_relay_module_nxc_impckt.controller.nxc_ctrl import NxcController
-from btc_relay_module_nxc_impckt.logger import get_logger, jsonl_event
-from btc_relay_module_nxc_impckt.parser.nxc_output import parse_generic, parse_ldap_users, parse_smb_shares, parse_smb_users
-from btc_relay_module_nxc_impckt.session import RelaySession, SessionRegistry, SessionStatus
+from btc_module_relay_nxc_impckt_rspndr.config import AppConfig, ProtocolActions
+from btc_module_relay_nxc_impckt_rspndr.controller.nxc_ctrl import NxcController
+from btc_module_relay_nxc_impckt_rspndr.logger import get_logger, jsonl_event
+from btc_module_relay_nxc_impckt_rspndr.parser.nxc_output import parse_generic, parse_ldap_users, parse_smb_shares, parse_smb_users
+from btc_module_relay_nxc_impckt_rspndr.session import RelaySession, SessionRegistry, SessionStatus
 
 logger = get_logger()
 

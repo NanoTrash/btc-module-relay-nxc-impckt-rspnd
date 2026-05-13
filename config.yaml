@@ -1,4 +1,4 @@
-project_name: "btc-relay-module-nxc-impckt"
+project_name: "btc-module-relay-nxc-impckt-rspndr"
 log_level: "INFO"
 output_jsonl: "sessions.jsonl"
 

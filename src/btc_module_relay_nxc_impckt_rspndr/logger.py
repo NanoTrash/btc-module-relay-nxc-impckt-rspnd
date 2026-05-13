@@ -38,7 +38,7 @@ def setup_logging(log_level: str = "INFO", jsonl_path: str = "sessions.jsonl") -
     structlog.contextvars.bind_contextvars(_jsonl_sink=_jsonl_sink)
 
 
-def get_logger(name: str = "btc_relay") -> structlog.stdlib.BoundLogger:
+def get_logger(name: str = "btc_module_relay") -> structlog.stdlib.BoundLogger:
     return structlog.get_logger(name)
 
 

@@ -17,10 +17,10 @@ dependencies = [
 ]
 
 [project.scripts]
-btc-relay-rspndr = "btc_relay_module_nxc_impckt.main:cli"
+btc-relay-rspndr = "btc_module_relay_nxc_impckt_rspndr.main:cli"
 
 [tool.poetry]
-packages = [{include = "btc_relay_module_nxc_impckt", from = "src"}]
+packages = [{include = "btc_module_relay_nxc_impckt_rspndr", from = "src"}]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

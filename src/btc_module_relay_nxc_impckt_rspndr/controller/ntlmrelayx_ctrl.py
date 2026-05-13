@@ -9,10 +9,10 @@ from typing import Any, Dict, Optional
 import docker
 from docker.models.containers import Container
 
-from btc_relay_module_nxc_impckt.config import AppConfig, NtlmrelayxConfig
-from btc_relay_module_nxc_impckt.logger import get_logger, jsonl_event
-from btc_relay_module_nxc_impckt.session import SessionRegistry
-from btc_relay_module_nxc_impckt.utils.docker_helpers import (
+from btc_module_relay_nxc_impckt_rspndr.config import AppConfig, NtlmrelayxConfig
+from btc_module_relay_nxc_impckt_rspndr.logger import get_logger, jsonl_event
+from btc_module_relay_nxc_impckt_rspndr.session import SessionRegistry
+from btc_module_relay_nxc_impckt_rspndr.utils.docker_helpers import (
     ensure_image,
     get_client,
     run_detached,

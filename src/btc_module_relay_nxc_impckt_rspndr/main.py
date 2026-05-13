@@ -9,14 +9,14 @@ from typing import Optional
 
 import click
 
-from btc_relay_module_nxc_impckt.config import AppConfig
-from btc_relay_module_nxc_impckt.controller.ntlmrelayx_ctrl import NtlmrelayxController
-from btc_relay_module_nxc_impckt.controller.responder_ctrl import ResponderController
-from btc_relay_module_nxc_impckt.controller.nxc_ctrl import NxcController
-from btc_relay_module_nxc_impckt.logger import get_logger, setup_logging
-from btc_relay_module_nxc_impckt.pipeline.coerce import CoercePipeline
-from btc_relay_module_nxc_impckt.pipeline.post_auth import PostAuthPipeline
-from btc_relay_module_nxc_impckt.session import SessionRegistry, SessionStatus
+from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
+from btc_module_relay_nxc_impckt_rspndr.controller.ntlmrelayx_ctrl import NtlmrelayxController
+from btc_module_relay_nxc_impckt_rspndr.controller.responder_ctrl import ResponderController
+from btc_module_relay_nxc_impckt_rspndr.controller.nxc_ctrl import NxcController
+from btc_module_relay_nxc_impckt_rspndr.logger import get_logger, setup_logging
+from btc_module_relay_nxc_impckt_rspndr.pipeline.coerce import CoercePipeline
+from btc_module_relay_nxc_impckt_rspndr.pipeline.post_auth import PostAuthPipeline
+from btc_module_relay_nxc_impckt_rspndr.session import SessionRegistry, SessionStatus
 
 logger = get_logger()
 
@@ -99,9 +99,9 @@ def start(config: str) -> None:
 @cli.command()
 def status() -> None:
     """Quick status check of running containers."""
-    from btc_relay_module_nxc_impckt.controller.responder_ctrl import CONTAINER_NAME as RESP_NAME
-    from btc_relay_module_nxc_impckt.controller.ntlmrelayx_ctrl import CONTAINER_NAME as NTLM_NAME
-    from btc_relay_module_nxc_impckt.utils.docker_helpers import get_client
+    from btc_module_relay_nxc_impckt_rspndr.controller.responder_ctrl import CONTAINER_NAME as RESP_NAME
+    from btc_module_relay_nxc_impckt_rspndr.controller.ntlmrelayx_ctrl import CONTAINER_NAME as NTLM_NAME
+    from btc_module_relay_nxc_impckt_rspndr.utils.docker_helpers import get_client
     client = get_client()
     for name in [RESP_NAME, NTLM_NAME]:
         try:
@@ -115,9 +115,9 @@ def status() -> None:
 @cli.command()
 def stop() -> None:
     """Stop all relay containers."""
-    from btc_relay_module_nxc_impckt.controller.responder_ctrl import CONTAINER_NAME as RESP_NAME
-    from btc_relay_module_nxc_impckt.controller.ntlmrelayx_ctrl import CONTAINER_NAME as NTLM_NAME
-    from btc_relay_module_nxc_impckt.utils.docker_helpers import get_client, stop_container
+    from btc_module_relay_nxc_impckt_rspndr.controller.responder_ctrl import CONTAINER_NAME as RESP_NAME
+    from btc_module_relay_nxc_impckt_rspndr.controller.ntlmrelayx_ctrl import CONTAINER_NAME as NTLM_NAME
+    from btc_module_relay_nxc_impckt_rspndr.utils.docker_helpers import get_client, stop_container
     client = get_client()
     stop_container(client, RESP_NAME)
     stop_container(client, NTLM_NAME)

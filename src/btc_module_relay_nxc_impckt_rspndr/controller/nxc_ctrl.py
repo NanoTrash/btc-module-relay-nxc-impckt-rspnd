@@ -4,9 +4,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from btc_relay_module_nxc_impckt.config import AppConfig
-from btc_relay_module_nxc_impckt.logger import get_logger
-from btc_relay_module_nxc_impckt.utils.docker_helpers import ensure_image, get_client, run_ephemeral
+from btc_module_relay_nxc_impckt_rspndr.config import AppConfig
+from btc_module_relay_nxc_impckt_rspndr.logger import get_logger
+from btc_module_relay_nxc_impckt_rspndr.utils.docker_helpers import ensure_image, get_client, run_ephemeral
 
 logger = get_logger()
 

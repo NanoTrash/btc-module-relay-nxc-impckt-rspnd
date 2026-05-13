@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import docker
 from docker.models.containers import Container
 
-from btc_relay_module_nxc_impckt.logger import get_logger
+from btc_module_relay_nxc_impckt_rspndr.logger import get_logger
 
 logger = get_logger()
 
