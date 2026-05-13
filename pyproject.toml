@@ -1,0 +1,41 @@
+[project]
+name = "btc-module-relay-nxc-impckt-rspndr"
+version = "0.2.0"
+description = "BAS NTLM relay module with Responder, ntlmrelayx and NetExec via Docker"
+authors = [{name = "ops", email = "ops@local.dev"}]
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "docker>=7.1.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "pyyaml>=6.0.1",
+    "structlog>=24.4.0",
+    "click>=8.1.0",
+    "python-dateutil>=2.9.0",
+]
+
+[project.scripts]
+btc-relay-rspndr = "btc_relay_module_nxc_impckt.main:cli"
+
+[tool.poetry]
+packages = [{include = "btc_relay_module_nxc_impckt", from = "src"}]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+ruff = "^0.8.0"
+mypy = "^1.13.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 120
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true

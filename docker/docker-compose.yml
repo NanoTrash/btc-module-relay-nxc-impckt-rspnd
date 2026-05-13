@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  ntlmrelayx:
+    build:
+      context: ./impacket
+    image: btc-relay/impacket:latest
+    container_name: btc-relay-ntlmrelayx
+    network_mode: host
+    volumes:
+      - ../loot:/loot
+      - ../logs:/logs
+    restart: unless-stopped
+    # Command is injected by the orchestrator dynamically via docker run override
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["tail -f /dev/null"]

