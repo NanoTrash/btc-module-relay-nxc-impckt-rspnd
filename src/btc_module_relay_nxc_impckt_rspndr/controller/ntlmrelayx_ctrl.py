@@ -101,8 +101,10 @@ class NtlmrelayxController:
     def _build_command(self) -> list[str]:
         """Build shell command for ntlmrelayx (runs via /bin/sh -c).
 
-        ntlmrelayx.py is started in background with nohup, then tail -f /dev/null
-        keeps the container alive so docker-py sees it as running.
+        ntlmrelayx.py reads stdin to stay alive (sys.stdin.read()).
+        We pipe tail -f /dev/null into it so stdin never closes,
+        keeping the process alive while the container runs.
+        Log output is redirected to /logs/ntlmrelayx.log.
         """
         parts = ["ntlmrelayx.py"]
         cfg = self.ntlm_cfg
@@ -111,6 +113,25 @@ class NtlmrelayxController:
             parts += ["-tf", "/logs/targets.txt"]
         if cfg.interface_ip:
             parts += ["-ip", cfg.interface_ip]
+        # Server ports
+        parts += ["--smb-port", str(cfg.smb_port)]
+        parts += ["--http-port", str(cfg.http_port)]
+        parts += ["--wcf-port", str(cfg.wcf_port)]
+        parts += ["--raw-port", str(cfg.raw_port)]
+        parts += ["--rpc-port", str(cfg.rpc_port)]
+        # Server toggles
+        if cfg.no_smb_server:
+            parts.append("--no-smb-server")
+        if cfg.no_http_server:
+            parts.append("--no-http-server")
+        if cfg.no_wcf_server:
+            parts.append("--no-wcf-server")
+        if cfg.no_raw_server:
+            parts.append("--no-raw-server")
+        if cfg.no_rpc_server:
+            parts.append("--no-rpc-server")
+        if cfg.no_winrm_server:
+            parts.append("--no-winrm-server")
         if cfg.smb2support:
             parts.append("-smb2support")
         if cfg.socks:
@@ -123,8 +144,8 @@ class NtlmrelayxController:
         # Loot output files
         parts += ["-of", "/loot/hashes", "-l", "/loot"]
         relay_cmd = " ".join(parts)
-        # Background ntlmrelayx with log redirect, foreground tail keeps container alive
-        shell_cmd = f"nohup {relay_cmd} > /logs/ntlmrelayx.log 2>&1 & tail -f /dev/null"
+        # Pipe tail into ntlmrelayx to keep stdin open; redirect stdout to log
+        shell_cmd = f"tail -f /dev/null | {relay_cmd} > /logs/ntlmrelayx.log 2>&1"
         return [shell_cmd]
 
     def _tail_logs(self) -> None:

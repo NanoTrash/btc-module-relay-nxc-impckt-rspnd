@@ -22,13 +22,22 @@ class NtlmrelayxConfig(BaseModel):
     enabled: bool = True
     interface_ip: str = "0.0.0.0"
     smb_port: int = 445
-    http_port: int = 80
+    http_port: str = "80"
+    wcf_port: int = 9389
+    raw_port: int = 6666
+    rpc_port: int = 135
     targets_file: str = "./targets_relay.txt"
     command: Optional[str] = None
     smb2support: bool = True
     socks: bool = False
     socks_port: int = 1080
     keep_relaying: bool = True
+    no_smb_server: bool = False
+    no_http_server: bool = False
+    no_wcf_server: bool = False
+    no_raw_server: bool = False
+    no_rpc_server: bool = False
+    no_winrm_server: bool = False
 
 
 class CoerceConfig(BaseModel):

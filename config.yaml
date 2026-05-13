@@ -17,7 +17,10 @@ ntlmrelayx:
   enabled: true
   interface_ip: "0.0.0.0"
   smb_port: 445
-  http_port: 80
+  http_port: "80"
+  wcf_port: 9389
+  raw_port: 6666
+  rpc_port: 135
   # Target file or single target for relay
   targets_file: "./targets_relay.txt"
   # Command to execute on successful relay (optional)
@@ -29,6 +32,13 @@ ntlmrelayx:
   socks_port: 1080
   # Keep relaying after success
   keep_relaying: true
+  # Disable specific servers
+  no_smb_server: false
+  no_http_server: false
+  no_wcf_server: false
+  no_raw_server: false
+  no_rpc_server: false
+  no_winrm_server: false
 
 # Passive poisoning via Responder
 responder:
