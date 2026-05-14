@@ -179,7 +179,7 @@ ntlmrelayx log ◄── Orchestrator parses success
 ```
 PENDING
    │
-   ├─► (coerce запущен) ───────────────┐
+   ├─► (coerce запущен) ────────────────┐
    │                                    │
    └─► (Responder poison event) ────────┤
    │                                    ▼
