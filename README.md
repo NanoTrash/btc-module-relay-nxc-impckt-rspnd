@@ -49,8 +49,9 @@
 │  Responder                  │      │  NetExec (nxc) ephemeral     │
 │  Docker container (detached)│      │  Docker containers (--rm)    │
 │  Network: host              │      │  Network: host               │
-│  Volume: ./responder        │      │  Volume: ./ (ro)             │
-│  SMB=Off, HTTP=Off          │      └──────────────────────────────┘
+│  Config: auto-generated     │      │  Volume: ./ (ro)             │
+│  Responder.conf             │      └──────────────────────────────┘
+│  SMB=Off, HTTP=Off          │
 └─────────────────────────────┘
 ┌─────────────────────────────┐
 │  impacket-ntlmrelayx        │
@@ -178,23 +179,27 @@ ntlmrelayx log ◄── Orchestrator parses success
 ```
 PENDING
    │
-   ▼ (coerce запущен)
-COERCING
-   │
-   ▼ (NTLM Type3 пойман listener'ом)
-CAPTURED
-   │
-   ▼ (ntlmrelayx начал relay)
-RELAYING
-   │
-   ├──► RELAY_SUCCESS  ──► POST_AUTH ──► COMPLETED
-   │
-   └──► FAILED
+   ├─► (coerce запущен) ───────────────┐
+   │                                    │
+   └─► (Responder poison event) ────────┤
+   │                                    ▼
+   │                               COERCING
+   │                                    │
+   │                                    ▼ (NTLM Type3 пойман listener'ом)
+   └──────────────────────────────► CAPTURED
+                                         │
+                                         ▼ (ntlmrelayx начал relay)
+                                    RELAYING
+                                         │
+            ┌────────────────────────────┴────────────────────────────┐
+            │                                                         │
+            ▼                                                         ▼
+      RELAY_SUCCESS  ──► POST_AUTH ──► COMPLETED                  FAILED
 ```
 
 | Статус | Описание |
 |--------|----------|
-| `PENDING` | Сессия создана, ожидает запуска coerce |
+| `PENDING` | Сессия создана (через coerce или Responder poison) |
 | `COERCING` | nxc coerce отправлен к цели |
 | `CAPTURED` | ntlmrelayx получил NTLM-авторизацию |
 | `RELAYING` | ntlmrelayx пересылает учётные данные к relay target |
@@ -257,12 +262,16 @@ ntlmrelayx:
   enabled: true
   interface_ip: "0.0.0.0"
   smb_port: 445
-  http_port: 80
+  http_port: "80"
+  wcf_port: 9389
+  raw_port: 6666
+  rpc_port: 135
   targets_file: "./targets_relay.txt"   # Файл с IP для relay
   command: null                         # Команда для exec после relay
   smb2support: true
   socks: false
   keep_relaying: true
+  no_winrm_server: false
 
 # Coercion: заставляем жертв аутентифицироваться
 coerce:
